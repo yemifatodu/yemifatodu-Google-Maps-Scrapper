@@ -4,6 +4,7 @@ from playwright.sync_api import sync_playwright, Page
 from dataclasses import dataclass, asdict
 import pandas as pd
 import argparse
+from urllib.parse import quote_plus
 import platform
 import time
 import os
@@ -38,7 +39,7 @@ def setup_logging():
 def extract_text(page: Page, xpath: str) -> str:
     try:
         if page.locator(xpath).count() > 0:
-            return page.locator(xpath).first.inner_text()
+            return page.locator(xpath).first.inner_text(timeout=5000)
     except Exception as e:
         logging.warning(f"Failed to extract text for xpath {xpath}: {e}")
     return ""
@@ -155,13 +156,11 @@ def scrape_places(search_for: str, total: int) -> List[Place]:
         page = browser.new_page()
         page.set_default_timeout(60000)
         try:
-            page.goto("https://www.google.com/maps?hl=en", wait_until="domcontentloaded", timeout=90000)
+            # Go straight to the search results page; no need to type into the search box
+            search_url = f"https://www.google.com/maps/search/{quote_plus(search_for)}?hl=en"
+            page.goto(search_url, wait_until="domcontentloaded", timeout=90000)
             page.wait_for_timeout(2000)
             dismiss_consent(page)
-
-            page.wait_for_selector("#searchboxinput", timeout=60000)
-            page.fill("#searchboxinput", search_for)
-            page.keyboard.press("Enter")
 
             page.wait_for_selector(PLACE_LINK_XPATH, timeout=60000)
             page.hover(PLACE_LINK_XPATH)
@@ -221,7 +220,7 @@ def save_places_to_csv(places: List[Place], output_path: str = "result.csv", app
         file_exists = os.path.isfile(output_path)
         mode = "a" if append else "w"
         header = not (append and file_exists)
-        df.to_csv(output_path, index=False, mode=mode, header=header)
+        df.to_csv(output_path, index=False, mode=mode, header=header, encoding="utf-8-sig")
         logging.info(f"Saved {len(df)} places to {output_path} (append={append})")
     else:
         logging.warning("No data to save. DataFrame is empty.")
