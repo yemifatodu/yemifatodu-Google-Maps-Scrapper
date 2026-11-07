@@ -3,3 +3,7 @@ __pycache__/
 result.csv
 output.csv
 playwright/.cache/ *.csv
+
+*.csv
+login.txt
+debug.png
