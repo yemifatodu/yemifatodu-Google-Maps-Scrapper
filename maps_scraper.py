@@ -4,6 +4,7 @@ from playwright.sync_api import sync_playwright, Page
 from dataclasses import dataclass, asdict
 import pandas as pd
 import argparse
+import json
 from urllib.parse import quote_plus
 import platform
 import time
@@ -174,6 +175,53 @@ def dismiss_consent(page: Page):
             pass
 
 
+def bring_window_to_front(title_start: str):
+    """Windows only: raise the scraper's Chrome window above your other windows.
+    Windows normally stops background programs from doing this, so we use the
+    'top-most then normal' trick plus a harmless Alt key tap."""
+    if platform.system() != "Windows" or not title_start:
+        return
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        user32 = ctypes.windll.user32
+        user32.GetWindowTextLengthW.argtypes = [wintypes.HWND]
+        user32.GetWindowTextW.argtypes = [wintypes.HWND, wintypes.LPWSTR, ctypes.c_int]
+        user32.IsWindowVisible.argtypes = [wintypes.HWND]
+        user32.ShowWindow.argtypes = [wintypes.HWND, ctypes.c_int]
+        user32.SetForegroundWindow.argtypes = [wintypes.HWND]
+        user32.SetWindowPos.argtypes = [
+            wintypes.HWND, wintypes.HWND, ctypes.c_int, ctypes.c_int,
+            ctypes.c_int, ctypes.c_int, ctypes.c_uint,
+        ]
+        enum_proc = ctypes.WINFUNCTYPE(ctypes.c_bool, wintypes.HWND, wintypes.LPARAM)
+        matches = []
+
+        def check(hwnd, _lparam):
+            if user32.IsWindowVisible(hwnd):
+                length = user32.GetWindowTextLengthW(hwnd)
+                if length:
+                    buf = ctypes.create_unicode_buffer(length + 1)
+                    user32.GetWindowTextW(hwnd, buf, length + 1)
+                    if buf.value.startswith(title_start) and "Chrome" in buf.value:
+                        matches.append(hwnd)
+            return True
+
+        user32.EnumWindows(enum_proc(check), 0)
+        flags = 0x0001 | 0x0002 | 0x0040  # no resize, no move, show
+        for hwnd in matches:
+            user32.ShowWindow(hwnd, 9)  # restore if minimized
+            user32.SetWindowPos(hwnd, wintypes.HWND(-1), 0, 0, 0, 0, flags)  # top-most
+            user32.SetWindowPos(hwnd, wintypes.HWND(-2), 0, 0, 0, 0, flags)  # back to normal, still on top
+            user32.keybd_event(0x12, 0, 0, 0)  # tap Alt so Windows allows the focus change
+            user32.SetForegroundWindow(hwnd)
+            user32.keybd_event(0x12, 0, 2, 0)
+        logging.info(f"Raised the Chrome window ({len(matches)} found)")
+    except Exception as e:  # never let this stop the scrape
+        logging.warning(f"Could not raise the Chrome window: {e}")
+
+
 def scrape_places(search_for: str, total: int, on_progress=None) -> List[Place]:
     setup_logging()
     places: List[Place] = []
@@ -185,10 +233,12 @@ def scrape_places(search_for: str, total: int, on_progress=None) -> List[Place]:
             # Go straight to the search results page; no need to type into the search box
             search_url = f"https://www.google.com/maps/search/{quote_plus(search_for)}?hl=en"
             page.goto(search_url, wait_until="domcontentloaded", timeout=90000)
+            page.bring_to_front()  # Windows can open the window behind your other windows
             page.wait_for_timeout(2000)
             dismiss_consent(page)
 
             page.wait_for_selector(PLACE_LINK_XPATH, timeout=60000)
+            bring_window_to_front(page.title())
             page.hover(PLACE_LINK_XPATH)
 
             previously_counted = 0
@@ -285,11 +335,21 @@ def main():
     parser.add_argument("-t", "--total", type=int, help="Total number of results to scrape")
     parser.add_argument("-o", "--output", type=str, default="result.csv", help="Output CSV file path")
     parser.add_argument("--append", action="store_true", help="Append results to the output file instead of overwriting")
+    parser.add_argument("--json-out", type=str, default=None, help="(used by the web app) write results to this JSON file")
     args = parser.parse_args()
     search_for = args.search or "turkish stores in toronto Canada"
     total = args.total or 1
     output_path = args.output
     append = args.append
+    if args.json_out:
+        # Web app mode: report progress on stdout and save every column as JSON
+        places = scrape_places(
+            search_for, total,
+            on_progress=lambda done, count: print(f"PROGRESS {done} {count}", flush=True),
+        )
+        with open(args.json_out, "w", encoding="utf-8") as f:
+            json.dump([asdict(p) for p in places], f)
+        return
     places = scrape_places(search_for, total)
     save_places_to_csv(places, output_path, append=append)
 

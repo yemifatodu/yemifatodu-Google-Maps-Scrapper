@@ -1,103 +1,90 @@
-# Google-Maps-Scrapper
-This Python script utilizes the Playwright library to perform web scraping and data extraction from Google Maps. It is particularly designed for obtaining information about businesses, including their name, address, website, phone number, reviews, and more.
+# Google Maps Scraper
 
-## Read Prerequistes
-Latest python was not used and is not suggested
+A small tool that collects business details from Google Maps and lets you download them as a CSV or Excel file. It runs on your own computer with a simple web page, or from the command line.
 
-<br>
-To do a custom web scraping project you can find me on Upwork or on Linkedin<br><br>
+## Features
 
-<a href="https://www.upwork.com/freelancers/~01dbb4d47d167c2d43" target="_blank">
-<img src=https://img.shields.io/badge/Upwork-6FDA44?&style=for-the-badge&logo=medium&logoColor=white alt=medium style="margin-bottom: 5px;" />
-</a>
+- Web page with a search box, a live progress bar, a results table and a **Stop** button
+- One-click **CSV** and **Excel (.xlsx)** downloads that open in Excel and Google Sheets
+- Username and password login for the web page
+- Skips places that Google lists more than once, and checks that the right place is loaded before reading its details, so rows are not mixed up
+- Brings the scraper's Chrome window to the front so you can watch it work (Windows)
+- Command-line mode for quick runs and for scripting
 
-<a href="https://www.linkedin.com/in/zohaibbashir" target="_blank">
-<img src="https://img.shields.io/badge/LinkedIn-0077B5?&style=for-the-badge&logo=linkedin&logoColor=white" alt="linkedin" style="margin-bottom: 5px;" />
-</a>
+## What it collects
 
+| Column | Description |
+| --- | --- |
+| `name` | Business name |
+| `address` | Street address |
+| `website` | Website address |
+| `phone_number` | Phone number |
+| `reviews_count` | Number of reviews |
+| `reviews_average` | Average star rating |
+| `place_type` | Category, for example Restaurant |
+| `opens_at` | Opening or closing time shown on Maps |
+| `introduction` | Short description, when Maps shows one |
+| `store_shopping`, `in_store_pickup`, `store_delivery` | Yes or No |
 
-## Table of Contents
-- [Prerequisites](#prerequisites)
-- [Multiple Branches](#multiple-branches)
-- [Key Features](#key-features)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Example](#example)
-- [Notes](#notes)
-- [Video Example](#video-example)
+## Requirements
 
-## Prerequisites
-- Python 3.8 or 3.9 (Python 3.10+ may not be compatible with some dependencies)
-- Google Chrome or Chromium browser installed (for Playwright)
+- Windows PC (tested), Python 3.12
+- Google Chrome installed
 
-## Multiple Branches
-The repo currently has 3 branches
-- Main
-- Latest Libraries (The one that works with latest libraries, can cause issues. Prefer Main)
-- Linux ( Linux Support if main branch does not work correctly)
+## Setup
 
+Run these in PowerShell:
 
-## Key Features
-- Data Scraping: The script scrapes data from Google Maps listings, extracting valuable information about businesses, such as their name, address, website, and contact details.
-
-- Review Analysis: It extracts review counts and average ratings, providing insights into businesses' online reputation.
-
-- Business Type Detection: The script identifies whether a business offers in-store shopping, in-store pickup, or delivery services.
-
-- Operating Hours: It extracts information about the business's operating hours.
-
-- Introduction Extraction: The script also scrapes introductory information about the businesses when available.
-
-- Data Cleansing: It cleanses and organizes the scraped data, removing redundant or unnecessary columns.
-
-- CSV Export: The cleaned data is exported to a CSV file for further analysis or integration with other tools.
-
-## Installation
-
-1. Clone this repository:
-   ```bash
-   git clone https://github.com/zohaibbashir/Google-Maps-Scrapper.git
-   cd google-maps-scraper
-   ```
-2. Install Python dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. Install Playwright browsers:
-   ```bash
-   playwright install
-   ```
-
-## Usage
-
-Run the script with your desired search term and number of results:
-
-```bash
-python main.py -s "Turkish Restaurants in Toronto Canada" -t 20
+```powershell
+git clone https://github.com/yemifatodu/yemifatodu-Google-Maps-Scrapper.git
+cd yemifatodu-Google-Maps-Scrapper
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
 ```
 
-- `-s` or `--search`: Search query for Google Maps (default: "turkish stores in toronto Canada")
-- `-t` or `--total`: Number of results to scrape (default: 1)
-- `-o` or `--output`: Output CSV file path (default: result.csv)
-- `--append`: Append results to the output file instead of overwriting (default: off)
+If you do not have Chrome, run `python -m playwright install chromium` as well.
 
-## Example
+## Set a login
 
-Append new results to an existing CSV file:
-```bash
-python main.py -s "Turkish Restaurants in Toronto Canada" -t 20 -o toronto_turkish_restaurants.csv --append
+Create a file named `login.txt` in the project folder with two lines: the username on the first line and the password on the second.
+
+```
+your-username
+your-password
 ```
 
-The script will launch a browser, perform the search, and start scraping information. Progress will be displayed in the terminal, and results will be saved to the specified CSV file. If `--append` is used, new results will be added to the end of the file without removing previous data.
+This file is listed in `.gitignore`, so it is never uploaded. Do not commit it or share it.
+
+## Run the web page
+
+```powershell
+python maps_web.py
+```
+
+Then open http://127.0.0.1:5000, log in, type what to search for including the place (for example `restaurants in Ikeja Lagos`), choose how many results, and click **Start scraping**. A Chrome window opens and collects the places. When it finishes, use the download buttons.
+
+Putting the tool on the internet is only safe with a strong password. When it is reachable from other devices it will not start unless the password has at least 12 characters and is not a common word.
+
+## Run from the command line
+
+```powershell
+python maps_scraper.py -s "restaurants in Ikeja Lagos" -t 20
+```
+
+| Option | Meaning |
+| --- | --- |
+| `-s`, `--search` | What to search for, including the place |
+| `-t`, `--total` | How many places to collect |
+| `-o`, `--output` | CSV file to write (default `result.csv`) |
+| `--append` | Add to the output file instead of replacing it |
 
 ## Notes
-- The script opens a visible browser window (not headless) for scraping.
-- Google Maps DOM may change, which can break the script. If you encounter issues, update the XPaths in `main.py`.
-- Avoid running too many scrapes in a short period to prevent being blocked by Google.
 
-## Video Example
-
-https://www.linkedin.com/posts/zohaibbashir_python-data-webscraping-activity-7093920891411062784-flEQ
+- Google changes how Maps is built from time to time. If a column comes back empty, the matching selector in `maps_scraper.py` probably needs updating.
+- Keep runs small. Running many searches quickly can get you blocked by Google.
+- Collecting data from Google Maps may be restricted by Google's terms of service. Use it responsibly and for lawful purposes only.
 
 ## License
-MIT
+
+MIT License. See the `LICENSE` file for the full terms.
